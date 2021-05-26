@@ -1,6 +1,4 @@
 
-
-// Rotary Encoder Inputs
 #include <Arduino.h>
 #include <TM1637Display.h>
 
@@ -32,12 +30,11 @@ int previousStateCLK;
 String encdir = "";
 
 //push button vars'
-int LEDState = 0;
 int buttonNew;
 int buttonOld = 1;
 
 //set boolean
-boolean breakness = true;
+boolean State = false;
 
 // display setups
 TM1637Display display(CLK, DIO);
@@ -65,69 +62,52 @@ void setup() {
 }
 
 void loop() {
-  while (breakness == true) {
-    buttonNew = digitalRead(buttonPin);
-    if (buttonOld == 0 && buttonNew == 1) {
-      if (LEDState == 0) {
-        digitalWrite(LEDPin, HIGH);
-        LEDState = 1;
+  // Read the current state of inputCLK
+  uint8_t data[] = { 0xff, 0xff, 0xff, 0xff };
+  uint8_t blank[] = { 0x00, 0x00, 0x00, 0x00 };
+  currentStateCLK = digitalRead(inputCLK);
+  display.setBrightness(0x0f);
 
-      }
-      else {
-        digitalWrite(LEDPin, LOW);
-        LEDState = 0;
 
+
+  buttonNew = digitalRead(buttonPin);
+  if (buttonOld == 0 && buttonNew == 1) {
+    if (State == false) {
+      counter = counter;
+
+      if (currentStateCLK != previousStateCLK) {
+
+        // If the inputDT state is different than the inputCLK state then
+        // the encoder is rotating counterclockwise
+        if (digitalRead(inputDT) != currentStateCLK) {
+          counter --;
+
+        } else {
+          // Encoder is rotating clockwise
+          counter ++;
+
+
+        }
+        Serial.print("Direction: ");
+        Serial.print(encdir);
+        Serial.print(" -- Value: ");
+        Serial.println(counter);
+        display.showNumberDec(counter, false);
+        State = true;
       }
     }
-    buttonOld = buttonNew;
-    delay(PBdt);
-  }
-  breakness = false;
-  
-  while ( breakness == false) {
-    // Read the current state of inputCLK
-    uint8_t data[] = { 0xff, 0xff, 0xff, 0xff };
-    uint8_t blank[] = { 0x00, 0x00, 0x00, 0x00 };
-    currentStateCLK = digitalRead(inputCLK);
-    display.setBrightness(0x0f);
-    //  display.setSegments(data);
-    //  delay(TEST_DELAY);
+    else {
 
-    //  display.setSegments(data);
-    //  delay(TEST_DELAY);
-
-    // If the previous and the current state of the inputCLK are different then a pulse has occured
-    if (currentStateCLK != previousStateCLK) {
-
-      // If the inputDT state is different than the inputCLK state then
-      // the encoder is rotating counterclockwise
-      if (digitalRead(inputDT) != currentStateCLK) {
-        counter --;
-        encdir = "CCW";
-        digitalWrite(ledCW, LOW);
-        digitalWrite(ledCCW, HIGH);
-
-      } else {
-        // Encoder is rotating clockwise
-        counter ++;
-        encdir = "CW";
-        digitalWrite(ledCW, HIGH);
-        digitalWrite(ledCCW, LOW);
-
-      }
-      Serial.print("Direction: ");
-      Serial.print(encdir);
-      Serial.print(" -- Value: ");
-      Serial.println(counter);
+      counter --;
+      delay(secondsCounterDt);
       display.showNumberDec(counter, false);
+      // Update previousStateCLK with the current state
+      State = false;
 
     }
-    counter --;
-    delay(secondsCounterDt);
-    display.showNumberDec(counter, false);
-    // Update previousStateCLK with the current state
-    previousStateCLK = currentStateCLK;
 
   }
-  breakness = true;
+  previousStateCLK = currentStateCLK;
+  buttonOld = buttonNew;
+  delay(PBdt);
 }
